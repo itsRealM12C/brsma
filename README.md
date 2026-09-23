@@ -1,6 +1,11 @@
-## BR02 — single still image
+# brsma
 
-Verified against `res.bin` / `res_1.bin`…`res_114.bin` (all 296×240).
+A res.bin (similar to PNG) extractor.
+
+# Origins
+`res.bin` originally came from a product called HONOR CHOICE CuBuds. I've
+got file access and I've extracted 4 `res.bin`s. But there's more, but I
+didn't wanted to waste my storage with these.
 
 ### Layout
 
