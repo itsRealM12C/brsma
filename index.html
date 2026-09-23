@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BR02 Extractor</title>
+<style>
+:root{
+  --bg:#0b0c0f; --panel:#15171b; --panel-2:#101216;
+  --border:#292c33; --border-2:#30343b;
+  --text:#f4f4f5; --muted:#858993; --muted-2:#9296a0;
+  --accent:#f1f1f2; --ok:#b8e6bd; --warn:#e5cf9a;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#f2f2f4; --panel:#fff; --panel-2:#f5f5f7; --border:#e2e2e6;
+    --border-2:#d5d5db; --text:#111214; --muted:#6b6f78; --muted-2:#54575f;
+    --accent:#18181b;
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:rgba(255,255,255,0)}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overscroll-behavior-y:none}
+button,input,label{-webkit-tap-highlight-color:rgba(255,255,255,0);font:inherit;color:inherit}
+button{border:0;background:none;cursor:pointer}
+
+.app{height:100%;display:flex;flex-direction:column;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);flex:0 0 auto}
+.brand{min-width:0}
+h1{margin:0;font-size:16px;line-height:1.2;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sub{margin-top:1px;color:var(--muted);font-size:11px}
+.head-btn{width:34px;height:34px;border-radius:9px;background:var(--panel-2);display:grid;place-items:center;flex:0 0 auto}
+.head-btn svg{width:17px;height:17px;fill:currentColor}
+.head-btn:hover{background:var(--border)}
+
+main{flex:1 1 auto;min-height:0;overflow-y:auto;padding:10px 14px 14px;display:flex;flex-direction:column;gap:10px}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:12px}
+
+.drop{min-height:76px;border:1.5px dashed var(--border-2);border-radius:12px;display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer;transition:background .15s,border-color .15s;user-select:none}
+.drop:hover,.drop.drag{background:var(--panel-2);border-color:var(--muted-2)}
+.drop input{display:none}
+.drop b{font-size:13px}
+.drop .sub{margin-top:2px}
+
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.btn{border-radius:10px;padding:9px 13px;background:var(--panel-2);font-weight:600;font-size:13px;border:1px solid var(--border-2)}
+.btn:hover{background:var(--border)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.primary{background:var(--accent);color:var(--panel);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.06)}
+
+/* Preview: small and fixed, mirrors the 1.00 tool -- never scales up to fill the panel */
+.stage{display:flex;justify-content:center;align-items:center;background:var(--panel-2);border-radius:10px;padding:10px;min-height:120px}
+#previewImg{display:none;max-width:220px;max-height:180px;width:auto;height:auto;border-radius:4px;background:#fff}
+.stage-empty{color:var(--muted);font-size:12px}
+.stage-foot{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:11px;color:var(--muted)}
+
+.info{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px}
+.stat{background:var(--panel-2);border-radius:9px;padding:7px 9px;min-width:0}
+.stat b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.stat span{display:block;margin-top:1px;color:var(--muted);font-size:10.5px}
+
+details.log-details summary{cursor:pointer;font-size:12px;color:var(--muted);user-select:none}
+.log{font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;color:var(--muted);max-height:220px;overflow:auto;margin-top:8px}
+.ok{color:var(--ok)}
+.warn{color:var(--warn)}
+
+.app:fullscreen,.app:-webkit-full-screen{background:var(--bg)}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+<header>
+  <div class="brand">
+    <h1>BR02 Extractor</h1>
+    <div class="sub">JieLi BR02 · row RLE · ARGB8565 → PNG</div>
+  </div>
+  <button class="head-btn" id="fullscreenBtn" title="Toggle fullscreen" aria-label="Toggle fullscreen">
+    <svg id="fsIcon" viewBox="0 0 24 24"><path d="M4 9V4h5v2H6v3H4zm10-5h5v5h-2V6h-3V4zM4 15h2v3h3v2H4v-5zm14 3v-3h2v5h-5v-2h3z"/></svg>
+  </button>
+</header>
+
+<main>
+  <div class="panel">
+    <label class="drop" id="drop">
+      <input id="file" type="file" accept=".bin,application/octet-stream">
+      <div>
+        <b>Choose a BR02 resource</b><br>
+        <span class="sub">or drop your .bin file here</span>
+      </div>
+    </label>
+    <div class="actions">
+      <button id="extract" class="btn primary" disabled>Extract PNG</button>
+      <button id="raw" class="btn" disabled>Save decompressed ARGB8565</button>
+    </div>
+  </div>
+
+  <div class="panel" id="infoPanel" hidden>
+    <div class="info">
+      <b id="_spacer" hidden></b>
+      <div class="stat"><b id="imgSize">—</b><span>Dimensions</span></div>
+      <div class="stat"><b id="imgBytes">—</b><span>Decompressed bytes</span></div>
+      <div class="stat"><b id="imgFormat">—</b><span>Pixel format</span></div>
+      <div class="stat"><b id="fileBytes">—</b><span>File size</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="stage">
+      <img id="previewImg" alt="Decoded BR02 image">
+      <span class="stage-empty" id="stageEmpty">No image decoded yet.</span>
+    </div>
+    <div class="stage-foot">
+      <span>Preview shown at fixed size — Extract PNG saves full resolution.</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <details class="log-details" open>
+      <summary>Log</summary>
+      <div class="log" id="log"></div>
+    </details>
+  </div>
+</main>
+</div>
+
+<script>
+"use strict";
+
+const $ = id => document.getElementById(id);
+const fileInput = $("file");
+const drop = $("drop");
+const extractBtn = $("extract");
+const rawBtn = $("raw");
+const previewImg = $("previewImg");
+const stageEmpty = $("stageEmpty");
+
+let selected = null;
+let decoded = null;
+
+function log(text,cls=""){
+  const el = document.createElement("div");
+  el.textContent = text;
+  if(cls) el.className = cls;
+  $("log").appendChild(el);
+  el.scrollIntoView({block:"nearest"});
+}
+
+function clearLog(){
+  $("log").textContent = "";
+}
+
+function u16(d,o){return d.getUint16(o,true)}
+function u32(d,o){return d.getUint32(o,true)}
+
+function decodeRow(src,width){
+  const out = new Uint8Array(width*3);
+  let sp=0, op=0;
+
+  while(sp<src.length && op<out.length){
+    const c=src[sp++];
+    const count=c&0x7f;
+    if(!count) continue;
+
+    if(c&0x80){
+      if(sp+3>src.length) throw new Error("Truncated repeat pixel");
+      const a=src[sp++], b=src[sp++], q=src[sp++];
+      for(let i=0;i<count;i++){
+        if(op+3>out.length) throw new Error("Row overflow");
+        out[op++]=a; out[op++]=b; out[op++]=q;
+      }
+    }else{
+      const n=count*3;
+      if(sp+n>src.length) throw new Error("Truncated literal pixels");
+      out.set(src.subarray(sp,sp+n),op);
+      sp+=n; op+=n;
+    }
+  }
+
+  if(op!==out.length)
+    throw new Error(`Row decoded to ${op} bytes; expected ${out.length}`);
+  return out;
+}
+
+function decode(blob){
+  const d=new DataView(blob);
+  if(blob.byteLength<4 || new Uint8Array(blob,0,4)[0]!==0x42 ||
+     new Uint8Array(blob,0,4)[1]!==0x52 ||
+     new Uint8Array(blob,0,4)[2]!==0x02 ||
+     new Uint8Array(blob,0,4)[3]!==0x00)
+    throw new Error("Not a BR02 file (expected 42 52 02 00)");
+
+  const width=u16(d,0xd0);
+  const height=u16(d,0xd2);
+  if(!width || !height) throw new Error("Invalid dimensions");
+  log(`Header OK · magic BR\\x02\\x00 · ${width}×${height}`);
+
+  const table=0xd8;
+  const bytes=new Uint8Array(blob);
+  const raw=new Uint8Array(width*height*3);
+
+  for(let y=0;y<height;y++){
+    const packed=u32(d,table+y*4);
+    const rowOff=packed&0x1fffff;
+    const rowLen=packed>>>21;
+    // Row offset is measured from the row table's own start (0xd8),
+    // not from "table + height*4" -- that double-counted the table size.
+    const start=table+rowOff;
+    const end=start+rowLen;
+    if(end>bytes.length) throw new Error(`Row ${y} exceeds file`);
+
+    const row=decodeRow(bytes.subarray(start,end),width);
+    raw.set(row,y*width*3);
+
+    if(y===0 || y===height-1 || (y+1)%64===0){
+      log(`Row ${y+1}/${height}: off=${rowOff}, len=${rowLen} → ${row.length} bytes`);
+    }
+  }
+
+  log(`All ${height} rows decoded · ${raw.length.toLocaleString()} ARGB8565 bytes`,"ok");
+
+  // Each pixel is A8 + RGB565 big-endian.
+  const rgb=new Uint8Array(width*height*3);
+  for(let p=0,i=0;p<raw.length;p+=3,i+=3){
+    const word=(raw[p+1]<<8)|raw[p+2];
+    const r=(word>>11)&31;
+    const g=(word>>5)&63;
+    const b=word&31;
+
+    rgb[i]=(r<<3)|(r>>2);
+    rgb[i+1]=(g<<2)|(g>>4);
+    rgb[i+2]=(b<<3)|(b>>2);
+  }
+
+  return {width,height,raw,rgb};
+}
+
+function pngFromRGB(width,height,rgb){
+  const canvas=document.createElement("canvas");
+  canvas.width=width; canvas.height=height;
+  const ctx=canvas.getContext("2d");
+  const rgba=new Uint8ClampedArray(width*height*4);
+  for(let i=0,j=0;i<rgb.length;i+=3,j+=4){
+    rgba[j]=rgb[i]; rgba[j+1]=rgb[i+1]; rgba[j+2]=rgb[i+2]; rgba[j+3]=255;
+  }
+  ctx.putImageData(new ImageData(rgba,width,height),0,0);
+  return new Promise(resolve=>canvas.toBlob(resolve,"image/png"));
+}
+
+function download(blob,name){
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=name;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+async function process(){
+  if(!selected)return;
+  clearLog();
+  try{
+    log(`Selected: ${selected.name} (${selected.size.toLocaleString()} bytes)`);
+    log("Decoding…");
+
+    decoded=decode(await selected.arrayBuffer());
+
+    $("imgSize").textContent = `${decoded.width} × ${decoded.height}`;
+    $("imgBytes").textContent = decoded.raw.length.toLocaleString();
+    $("imgFormat").textContent = "ARGB8565";
+    $("fileBytes").textContent = `${(selected.size/1024).toFixed(1)} KB`;
+    $("infoPanel").hidden = false;
+
+    const png=await pngFromRGB(decoded.width,decoded.height,decoded.rgb);
+    previewImg.src=URL.createObjectURL(png);
+    previewImg.style.display="block";
+    stageEmpty.style.display="none";
+    extractBtn.disabled=false;
+    rawBtn.disabled=false;
+
+    extractBtn.onclick=()=>download(png,selected.name.replace(/\.[^.]+$/,"")+".png");
+    rawBtn.onclick=()=>download(
+      new Blob([decoded.raw],{type:"application/octet-stream"}),
+      selected.name.replace(/\.[^.]+$/,"")+"_argb8565.raw"
+    );
+
+    log("Decoded successfully.","ok");
+  }catch(e){
+    decoded=null;
+    extractBtn.disabled=true;
+    rawBtn.disabled=true;
+    previewImg.style.display="none";
+    stageEmpty.style.display="block";
+    $("infoPanel").hidden = true;
+    log("Decode failed: "+e.message,"warn");
+  }
+}
+
+fileInput.onchange=()=>{
+  selected=fileInput.files[0]||null;
+  if(selected) process();
+};
+
+drop.onclick=()=>{ fileInput.click(); };
+
+["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{
+  e.preventDefault(); drop.classList.add("drag");
+}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{
+  e.preventDefault(); drop.classList.remove("drag");
+}));
+drop.addEventListener("drop",e=>{
+  const f=e.dataTransfer.files[0];
+  if(f){
+    selected=f;
+    process();
+  }
+});
+
+/* Fullscreen toggle, same behavior as the 1.00 tool */
+const appEl = $("app");
+const fsBtn = $("fullscreenBtn");
+const fsIcon = $("fsIcon");
+const ICON_ENTER = '<path d="M4 9V4h5v2H6v3H4zm10-5h5v5h-2V6h-3V4zM4 15h2v3h3v2H4v-5zm14 3v-3h2v5h-5v-2h3z"/>';
+const ICON_EXIT  = '<path d="M9 4v3H6v2H4V4h5zm11 5V6h-3V4h5v5h-2zM4 15h2v3h3v2H4v-5zm16 0v5h-5v-2h3v-3h2z"/>';
+
+function updateFsIcon(){
+  const isFs = document.fullscreenElement || document.webkitFullscreenElement;
+  fsIcon.innerHTML = isFs ? ICON_EXIT : ICON_ENTER;
+  fsBtn.title = isFs ? "Exit fullscreen" : "Enter fullscreen";
+}
+
+fsBtn.onclick = ()=>{
+  const isFs = document.fullscreenElement || document.webkitFullscreenElement;
+  if(!isFs){
+    (appEl.requestFullscreen || appEl.webkitRequestFullscreen)?.call(appEl);
+  }else{
+    (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
+  }
+};
+
+document.addEventListener("fullscreenchange", updateFsIcon);
+document.addEventListener("webkitfullscreenchange", updateFsIcon);
+updateFsIcon();
+</script>
+</body>
+</html>
