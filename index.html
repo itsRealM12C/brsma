@@ -11,6 +11,7 @@
   --text:#f4f4f5; --muted:#858993; --muted-2:#9296a0;
   --accent:#f1f1f2; --ok:#b8e6bd; --warn:#e5cf9a;
 }
+:root:not([data-theme="light"]){ }
 @media (prefers-color-scheme: light){
   :root:not([data-theme="dark"]){
     --bg:#f2f2f4; --panel:#fff; --panel-2:#f5f5f7; --border:#e2e2e6;
@@ -41,23 +42,36 @@ main{flex:1 1 auto;min-height:0;overflow-y:auto;padding:10px 14px 14px;display:f
 .drop b{font-size:13px}
 .drop .sub{margin-top:2px}
 
-.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-.btn{border-radius:10px;padding:9px 13px;background:var(--panel-2);font-weight:600;font-size:13px;border:1px solid var(--border-2)}
-.btn:hover{background:var(--border)}
-.btn:disabled{opacity:.4;cursor:not-allowed}
-.btn.primary{background:var(--accent);color:var(--panel);border-color:var(--accent)}
-.btn.primary:hover{filter:brightness(1.06)}
-
-/* Preview: small and fixed, mirrors the 1.00 tool -- never scales up to fill the panel */
-.stage{display:flex;justify-content:center;align-items:center;background:var(--panel-2);border-radius:10px;padding:10px;min-height:120px}
-#previewImg{display:none;max-width:220px;max-height:180px;width:auto;height:auto;border-radius:4px;background:#fff}
-.stage-empty{color:var(--muted);font-size:12px}
+.stage{
+  display:flex; justify-content:center; align-items:center;
+  background:var(--panel-2); border-radius:10px; padding:10px;
+}
+#canvas{
+  display:block;
+  width:auto; height:auto;
+  max-width:220px; max-height:180px;
+  image-rendering:pixelated;
+  background:#fff; border-radius:4px;
+  box-shadow:0 1px 0 var(--border);
+}
 .stage-foot{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:11px;color:var(--muted)}
 
 .info{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px}
 .stat{background:var(--panel-2);border-radius:9px;padding:7px 9px;min-width:0}
 .stat b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
 .stat span{display:block;margin-top:1px;color:var(--muted);font-size:10.5px}
+
+.media-bottom{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.media-btn{
+  width:36px;height:36px;border-radius:10px;background:var(--panel-2);
+  display:grid;place-items:center;transition:background .12s,transform .08s;
+}
+.media-btn:hover{background:var(--border)}
+.media-btn:active{transform:scale(.94)}
+.media-btn svg{width:17px;height:17px;fill:currentColor}
+.media-btn:disabled{opacity:.35;cursor:not-allowed}
+.spacer{flex:1}
+.frame-info{color:var(--muted-2);font:11px ui-monospace,SFMono-Regular,Consolas,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 details.log-details summary{cursor:pointer;font-size:12px;color:var(--muted);user-select:none}
 .log{font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;color:var(--muted);max-height:220px;overflow:auto;margin-top:8px}
@@ -72,7 +86,7 @@ details.log-details summary{cursor:pointer;font-size:12px;color:var(--muted);use
 <header>
   <div class="brand">
     <h1>BR02 Extractor</h1>
-    <div class="sub">JieLi BR02 · row RLE · ARGB8565 → PNG</div>
+    <div class="sub">JieLi BR02 · row RLE · ARGB8565 → PNG/GIF</div>
   </div>
   <button class="head-btn" id="fullscreenBtn" title="Toggle fullscreen" aria-label="Toggle fullscreen">
     <svg id="fsIcon" viewBox="0 0 24 24"><path d="M4 9V4h5v2H6v3H4zm10-5h5v5h-2V6h-3V4zM4 15h2v3h3v2H4v-5zm14 3v-3h2v5h-5v-2h3z"/></svg>
@@ -88,10 +102,6 @@ details.log-details summary{cursor:pointer;font-size:12px;color:var(--muted);use
         <span class="sub">or drop your .bin file here</span>
       </div>
     </label>
-    <div class="actions">
-      <button id="extract" class="btn primary" disabled>Extract PNG</button>
-      <button id="raw" class="btn" disabled>Save decompressed ARGB8565</button>
-    </div>
   </div>
 
   <div class="panel" id="infoPanel" hidden>
@@ -105,12 +115,22 @@ details.log-details summary{cursor:pointer;font-size:12px;color:var(--muted);use
   </div>
 
   <div class="panel">
-    <div class="stage">
-      <img id="previewImg" alt="Decoded BR02 image">
-      <span class="stage-empty" id="stageEmpty">No image decoded yet.</span>
-    </div>
+    <div class="stage"><canvas id="canvas" width="296" height="240"></canvas></div>
     <div class="stage-foot">
-      <span>Preview shown at fixed size — Extract PNG saves full resolution.</span>
+      <span id="previewNote">Preview shown at fixed size — use Save for full resolution.</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="media-bottom">
+      <div class="spacer"></div>
+      <div class="frame-info" id="frameLabel">No file loaded</div>
+      <button class="media-btn" id="gif" title="Save as GIF" aria-label="Save as GIF" disabled>
+        <svg viewBox="0 0 24 24"><path d="M3 5h18v14H3V5zm2 2v2h2V7H5zm0 4v2h2v-2H5zm0 4v2h2v-2H5zm12-8v2h2V7h-2zm0 4v2h2v-2h-2zm0 4v2h2v-2h-2zM9 7h6v10H9V7z"/></svg>
+      </button>
+      <button class="media-btn" id="png" title="Save as PNG" aria-label="Save as PNG" disabled>
+        <svg viewBox="0 0 24 24"><path d="M12 3v11m0 0 4-4m-4 4-4-4M5 17v2h14v-2"/></svg>
+      </button>
     </div>
   </div>
 
@@ -129,10 +149,12 @@ details.log-details summary{cursor:pointer;font-size:12px;color:var(--muted);use
 const $ = id => document.getElementById(id);
 const fileInput = $("file");
 const drop = $("drop");
-const extractBtn = $("extract");
-const rawBtn = $("raw");
-const previewImg = $("previewImg");
-const stageEmpty = $("stageEmpty");
+const pngBtn = $("png");
+const gifBtn = $("gif");
+const frameLabel = $("frameLabel");
+
+const canvas = $("canvas");
+const ctx = canvas.getContext("2d");
 
 let selected = null;
 let decoded = null;
@@ -202,8 +224,6 @@ function decode(blob){
     const packed=u32(d,table+y*4);
     const rowOff=packed&0x1fffff;
     const rowLen=packed>>>21;
-    // Row offset is measured from the row table's own start (0xd8),
-    // not from "table + height*4" -- that double-counted the table size.
     const start=table+rowOff;
     const end=start+rowLen;
     if(end>bytes.length) throw new Error(`Row ${y} exceeds file`);
@@ -218,7 +238,6 @@ function decode(blob){
 
   log(`All ${height} rows decoded · ${raw.length.toLocaleString()} ARGB8565 bytes`,"ok");
 
-  // Each pixel is A8 + RGB565 big-endian.
   const rgb=new Uint8Array(width*height*3);
   for(let p=0,i=0;p<raw.length;p+=3,i+=3){
     const word=(raw[p+1]<<8)|raw[p+2];
@@ -234,16 +253,17 @@ function decode(blob){
   return {width,height,raw,rgb};
 }
 
-function pngFromRGB(width,height,rgb){
-  const canvas=document.createElement("canvas");
-  canvas.width=width; canvas.height=height;
-  const ctx=canvas.getContext("2d");
-  const rgba=new Uint8ClampedArray(width*height*4);
-  for(let i=0,j=0;i<rgb.length;i+=3,j+=4){
-    rgba[j]=rgb[i]; rgba[j+1]=rgb[i+1]; rgba[j+2]=rgb[i+2]; rgba[j+3]=255;
+function drawToCanvas(d){
+  canvas.width = d.width;
+  canvas.height = d.height;
+  const rgba = new Uint8ClampedArray(d.width * d.height * 4);
+  for(let i=0,j=0; i<d.rgb.length; i+=3,j+=4){
+    rgba[j]=d.rgb[i];
+    rgba[j+1]=d.rgb[i+1];
+    rgba[j+2]=d.rgb[i+2];
+    rgba[j+3]=255;
   }
-  ctx.putImageData(new ImageData(rgba,width,height),0,0);
-  return new Promise(resolve=>canvas.toBlob(resolve,"image/png"));
+  ctx.putImageData(new ImageData(rgba, d.width, d.height), 0, 0);
 }
 
 function download(blob,name){
@@ -253,6 +273,220 @@ function download(blob,name){
   a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
+
+/* ---------------- Color quantization (median cut) ---------------- */
+
+function quantizeMedianCut(rgb,width,height){
+  const n=width*height;
+
+  const hist=new Map();
+  for(let i=0;i<rgb.length;i+=3){
+    const key=(rgb[i]<<16)|(rgb[i+1]<<8)|rgb[i+2];
+    hist.set(key,(hist.get(key)||0)+1);
+  }
+  log(`Unique colors: ${hist.size}`);
+
+  let colors=[];
+  for(const [key,count] of hist){
+    colors.push([(key>>16)&0xFF,(key>>8)&0xFF,key&0xFF,count]);
+  }
+
+  let buckets=[colors];
+
+  while(buckets.length<256){
+    let maxRange=-1, maxIdx=-1, maxCh=0;
+
+    for(let bi=0;bi<buckets.length;bi++){
+      const b=buckets[bi];
+      if(b.length<2) continue;
+
+      for(let c=0;c<3;c++){
+        let mn=255,mx=0;
+        for(let j=0;j<b.length;j++){
+          if(b[j][c]<mn) mn=b[j][c];
+          if(b[j][c]>mx) mx=b[j][c];
+        }
+        const range=mx-mn;
+        if(range>maxRange){
+          maxRange=range; maxIdx=bi; maxCh=c;
+        }
+      }
+    }
+
+    if(maxIdx===-1) break;
+
+    const bucket=buckets[maxIdx];
+    bucket.sort((a,b)=>a[maxCh]-b[maxCh]);
+
+    let totalW=0;
+    for(let j=0;j<bucket.length;j++) totalW+=bucket[j][3];
+    let halfW=totalW/2, cumW=0, split=0;
+    for(let j=0;j<bucket.length;j++){
+      cumW+=bucket[j][3];
+      if(cumW>=halfW){split=j+1;break;}
+    }
+    if(split<1) split=1;
+    if(split>=bucket.length) split=bucket.length-1;
+
+    buckets.splice(maxIdx,1,bucket.slice(0,split),bucket.slice(split));
+  }
+
+  const palette=[];
+  for(const bucket of buckets){
+    if(!bucket.length) continue;
+    let r=0,g=0,b=0,total=0;
+    for(let j=0;j<bucket.length;j++){
+      r+=bucket[j][0]*bucket[j][3];
+      g+=bucket[j][1]*bucket[j][3];
+      b+=bucket[j][2]*bucket[j][3];
+      total+=bucket[j][3];
+    }
+    palette.push([Math.round(r/total),Math.round(g/total),Math.round(b/total)]);
+  }
+
+  log(`Palette: ${palette.length} colors`);
+
+  const paletteBytes=new Uint8Array(768);
+  for(let i=0;i<palette.length && i<256;i++){
+    paletteBytes[i*3]=palette[i][0];
+    paletteBytes[i*3+1]=palette[i][1];
+    paletteBytes[i*3+2]=palette[i][2];
+  }
+
+  const indexed=new Uint8Array(n);
+  const cache=new Map();
+  const k=palette.length;
+
+  for(let i=0;i<n;i++){
+    const r=rgb[i*3], g=rgb[i*3+1], b=rgb[i*3+2];
+    const key=(r<<16)|(g<<8)|b;
+
+    let idx=cache.get(key);
+    if(idx===undefined){
+      let minDist=Infinity;
+      idx=0;
+      for(let j=0;j<k;j++){
+        const dr=r-palette[j][0];
+        const dg=g-palette[j][1];
+        const db=b-palette[j][2];
+        const dist=dr*dr+dg*dg+db*db;
+        if(dist<minDist){minDist=dist;idx=j;}
+      }
+      cache.set(key,idx);
+    }
+    indexed[i]=idx;
+  }
+
+  return {indexed,palette:paletteBytes,numColors:palette.length};
+}
+
+/* ---------------- GIF encoder (single frame) ---------------- */
+
+function lzwEncode(pixels,minCodeSize){
+  const clearCode=1<<minCodeSize;
+  const endCode=clearCode+1;
+  let codeSize=minCodeSize+1;
+  let nextCode=endCode+1;
+
+  const dict=new Map();
+  for(let i=0;i<clearCode;i++){
+    dict.set(String.fromCharCode(i),i);
+  }
+
+  const out=[];
+  let bitBuf=0,bitCnt=0;
+
+  function emit(code){
+    bitBuf|=(code<<bitCnt);
+    bitCnt+=codeSize;
+    while(bitCnt>=8){
+      out.push(bitBuf&0xFF);
+      bitBuf>>>=8;
+      bitCnt-=8;
+    }
+  }
+
+  function resetDict(){
+    dict.clear();
+    for(let i=0;i<clearCode;i++){
+      dict.set(String.fromCharCode(i),i);
+    }
+    codeSize=minCodeSize+1;
+    nextCode=endCode+1;
+  }
+
+  emit(clearCode);
+  let w=String.fromCharCode(pixels[0]);
+
+  for(let i=1;i<pixels.length;i++){
+    const c=pixels[i];
+    const wc=w+String.fromCharCode(c);
+    if(dict.has(wc)){
+      w=wc;
+    }else{
+      emit(dict.get(w));
+      dict.set(wc,nextCode);
+      nextCode++;
+      if(nextCode===(1<<codeSize)&&codeSize<12){
+        codeSize++;
+      }else if(nextCode===4095){
+        emit(clearCode);
+        resetDict();
+      }
+      w=String.fromCharCode(c);
+    }
+  }
+
+  emit(dict.get(w));
+  emit(endCode);
+
+  if(bitCnt>0){
+    out.push(bitBuf&0xFF);
+  }
+
+  return out;
+}
+
+function encodeGIFSingle(width,height,indexed,palette){
+  const out=[];
+
+  out.push(0x47,0x49,0x46,0x38,0x39,0x61);
+
+  out.push(width&0xFF,(width>>8)&0xFF);
+  out.push(height&0xFF,(height>>8)&0xFF);
+  out.push(0xF7,0x00,0x00);
+
+  for(let i=0;i<256;i++){
+    out.push(palette[i*3],palette[i*3+1],palette[i*3+2]);
+  }
+
+  out.push(0x2C);
+  out.push(0x00,0x00,0x00,0x00);
+  out.push(width&0xFF,(width>>8)&0xFF);
+  out.push(height&0xFF,(height>>8)&0xFF);
+  out.push(0x00);
+
+  const minCodeSize=8;
+  out.push(minCodeSize);
+
+  const lzw=lzwEncode(indexed,minCodeSize);
+  let pos=0;
+  while(pos<lzw.length){
+    const chunk=Math.min(255,lzw.length-pos);
+    out.push(chunk);
+    for(let i=0;i<chunk;i++){
+      out.push(lzw[pos+i]);
+    }
+    pos+=chunk;
+  }
+  out.push(0x00);
+
+  out.push(0x3B);
+
+  return new Uint8Array(out);
+}
+
+/* ---------------- Main processing ---------------- */
 
 async function process(){
   if(!selected)return;
@@ -269,53 +503,74 @@ async function process(){
     $("fileBytes").textContent = `${(selected.size/1024).toFixed(1)} KB`;
     $("infoPanel").hidden = false;
 
-    const png=await pngFromRGB(decoded.width,decoded.height,decoded.rgb);
-    previewImg.src=URL.createObjectURL(png);
-    previewImg.style.display="block";
-    stageEmpty.style.display="none";
-    extractBtn.disabled=false;
-    rawBtn.disabled=false;
+    frameLabel.textContent = `${decoded.width}×${decoded.height} · ARGB8565`;
 
-    extractBtn.onclick=()=>download(png,selected.name.replace(/\.[^.]+$/,"")+".png");
-    rawBtn.onclick=()=>download(
-      new Blob([decoded.raw],{type:"application/octet-stream"}),
-      selected.name.replace(/\.[^.]+$/,"")+"_argb8565.raw"
-    );
+    drawToCanvas(decoded);
 
-    log("Decoded successfully.","ok");
+    pngBtn.disabled=false;
+    gifBtn.disabled=false;
+
+    pngBtn.onclick = () => {
+      canvas.toBlob(blob => {
+        if(!blob) return;
+        download(blob, selected.name.replace(/\.[^.]+$/, "") + ".png");
+      }, "image/png");
+    };
+
+    gifBtn.onclick = () => {
+      if(!decoded) return;
+      if(gifBtn.disabled) return;
+      gifBtn.disabled = true;
+      log("Quantizing to 256 colors…");
+      setTimeout(() => {
+        try{
+          const {indexed,palette} = quantizeMedianCut(decoded.rgb, decoded.width, decoded.height);
+          log("Encoding GIF…");
+          const bytes = encodeGIFSingle(decoded.width, decoded.height, indexed, palette);
+          download(new Blob([bytes], {type:"image/gif"}),
+            selected.name.replace(/\.[^.]+$/, "") + ".gif");
+          log(`GIF saved (${(bytes.length/1024).toFixed(1)} KB)`, "ok");
+        }catch(e){
+          log("GIF encode failed: " + e.message, "warn");
+        }finally{
+          gifBtn.disabled = false;
+        }
+      }, 10);
+    };
+
+    log("Decoded successfully.", "ok");
   }catch(e){
-    decoded=null;
-    extractBtn.disabled=true;
-    rawBtn.disabled=true;
-    previewImg.style.display="none";
-    stageEmpty.style.display="block";
+    decoded = null;
+    pngBtn.disabled = true;
+    gifBtn.disabled = true;
     $("infoPanel").hidden = true;
-    log("Decode failed: "+e.message,"warn");
+    frameLabel.textContent = "No file loaded";
+    log("Decode failed: " + e.message, "warn");
   }
 }
 
-fileInput.onchange=()=>{
-  selected=fileInput.files[0]||null;
+fileInput.onchange = () => {
+  selected = fileInput.files[0] || null;
   if(selected) process();
 };
 
-drop.onclick=()=>{ fileInput.click(); };
+drop.onclick = () => { fileInput.click(); };
 
-["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{
+["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, e => {
   e.preventDefault(); drop.classList.add("drag");
 }));
-["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{
+["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => {
   e.preventDefault(); drop.classList.remove("drag");
 }));
-drop.addEventListener("drop",e=>{
-  const f=e.dataTransfer.files[0];
+drop.addEventListener("drop", e => {
+  const f = e.dataTransfer.files[0];
   if(f){
-    selected=f;
+    selected = f;
     process();
   }
 });
 
-/* Fullscreen toggle, same behavior as the 1.00 tool */
+/* Fullscreen toggle */
 const appEl = $("app");
 const fsBtn = $("fullscreenBtn");
 const fsIcon = $("fsIcon");
@@ -328,7 +583,7 @@ function updateFsIcon(){
   fsBtn.title = isFs ? "Exit fullscreen" : "Enter fullscreen";
 }
 
-fsBtn.onclick = ()=>{
+fsBtn.onclick = () => {
   const isFs = document.fullscreenElement || document.webkitFullscreenElement;
   if(!isFs){
     (appEl.requestFullscreen || appEl.webkitRequestFullscreen)?.call(appEl);
