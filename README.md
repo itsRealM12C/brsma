@@ -1,6 +1,6 @@
 # brsma
 
-A res.bin (similar to PNG) extractor.
+A res.bin (similar to JPG) extractor.
 
 # Origins
 `res.bin` originally came from a product called HONOR CHOICE CuBuds. I've
