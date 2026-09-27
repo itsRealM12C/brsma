@@ -85,8 +85,8 @@ details.log-details summary{cursor:pointer;font-size:12px;color:var(--muted);use
 <div class="app" id="app">
 <header>
   <div class="brand">
-    <h1>BR02 Extractor</h1>
-    <div class="sub">JieLi BR02 · row RLE · ARGB8565 → PNG/GIF</div>
+    <h1>BRSMA Extractor</h1>
+    <div class="sub">JieLi BRSMA · row RLE · ARGB8565 → PNG/GIF</div>
   </div>
   <button class="head-btn" id="fullscreenBtn" title="Toggle fullscreen" aria-label="Toggle fullscreen">
     <svg id="fsIcon" viewBox="0 0 24 24"><path d="M4 9V4h5v2H6v3H4zm10-5h5v5h-2V6h-3V4zM4 15h2v3h3v2H4v-5zm14 3v-3h2v5h-5v-2h3z"/></svg>
@@ -98,7 +98,7 @@ details.log-details summary{cursor:pointer;font-size:12px;color:var(--muted);use
     <label class="drop" id="drop">
       <input id="file" type="file" accept=".bin,application/octet-stream">
       <div>
-        <b>Choose a BR02 resource</b><br>
+        <b>Choose a BRSMA resource</b><br>
         <span class="sub">or drop your .bin file here</span>
       </div>
     </label>
@@ -209,7 +209,7 @@ function decode(blob){
      new Uint8Array(blob,0,4)[1]!==0x52 ||
      new Uint8Array(blob,0,4)[2]!==0x02 ||
      new Uint8Array(blob,0,4)[3]!==0x00)
-    throw new Error("Not a BR02 file (expected 42 52 02 00)");
+    throw new Error("Not a BRSMA file (expected 42 52 02 00)");
 
   const width=u16(d,0xd0);
   const height=u16(d,0xd2);
